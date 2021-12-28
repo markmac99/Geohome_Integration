@@ -43,11 +43,15 @@ def graphLiveData(ym):
             gasval = 0
         else:
             gasval = float(gas_usage)
-        print(dtstamp.strftime('%Y-%m-%dT%H:%M:%S'), eleval, gasval )
+#        print(dtstamp.strftime('%Y-%m-%dT%H:%M:%S'), eleval, gasval )
         if dtstamp > datetime.datetime.fromtimestamp(0): 
             dts.append(dtstamp)
             ele.append(eleval)
             gas.append(gasval)
+
+    plt.clf()
+    fig = plt.gcf()
+    fig.set_size_inches(11.6, 8.26)
 
     plt.plot(dts, ele, label='Electricity')
     plt.plot(dts, gas, label='Gas')
