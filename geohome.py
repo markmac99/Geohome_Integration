@@ -89,7 +89,7 @@ class GeoHome(threading.Thread):
                 self.authorise()
                 self.getDevice()
             else:
-                log = log + os.linesep + json.dumps(r.text)
+                #log = log + os.linesep + json.dumps(r.text)
                 power_dict = json.loads(r.text)['power']
                 outfnam = datetime.now().strftime('live-%Y%m.json')
                 with open(outfnam, 'a') as outf:
@@ -105,9 +105,8 @@ class GeoHome(threading.Thread):
                 else:
                     # Code executed ok so update the usage
                     #HouseElectricityPower.state= Electrcity_usage
-                    log = log + os.linesep + \
-                        "Electrcity_usage:"+str(Electrcity_usage)
-
+                    #log = log + os.linesep + "Electrcity_usage:"+str(Electrcity_usage)
+                    pass
                 try:
                     Gas_usage = (
                         [x for x in power_dict if x['type'] == 'GAS_ENERGY'][0]['watts'])
@@ -116,7 +115,8 @@ class GeoHome(threading.Thread):
                     log = log + os.linesep + "No Gas reading found"
                 else:
                     # Update Gas reading 
-                    log = log + os.linesep + "Gas Usage:" + str(Gas_usage)
+                    # log = log + os.linesep + "Gas Usage:" + str(Gas_usage)
+                    pass
 
             with open(LOG_DIRECTORY+"GeoHomeLog"+time.strftime("%Y%m%d")+".json", mode='a+', encoding='utf-8') as f:
                 f.write(log + os.linesep)
