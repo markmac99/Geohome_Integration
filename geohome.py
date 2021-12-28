@@ -135,7 +135,7 @@ class GeoHome(threading.Thread):
                     outfnam = datetime.now().strftime('peri-%Y%m.json')
                     with open(outfnam, 'a') as outf:
                         outf.write('{}\n'.format(r.text))
-                    print(r.text)
+                    # print(r.text)
 
             time.sleep(10)
             self.ttlcountdown -= 10
