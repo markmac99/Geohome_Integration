@@ -55,6 +55,8 @@ def graphLiveData(ym):
     plt.ylabel('kW')
     plt.title('Home Energy Consumption')
     plt.show()
+    fname2 = datetime.datetime.now().strftime('live-%Y%m.jpg')
+    plt.savefig(fname2)
 
 if __name__ == '__main__':
     graphLiveData(0)
