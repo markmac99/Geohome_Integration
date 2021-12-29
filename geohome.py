@@ -12,14 +12,15 @@ from datetime import datetime
 #from openhab import OpenHAB
 import os
 
+from geoconfig import USERNAME, PASSWORD
+
 BASE_URL = 'https://api.geotogether.com/'
 LOGIN_URL = 'usersservice/v2/login'
 DEVICEDETAILS_URL = 'api/userapi/v2/user/detail-systems?systemDetails=true'
 LIVEDATA_URL = 'api/userapi/system/smets2-live-data/'
 PERIODICDATA_URL = 'api/userapi/system/smets2-periodic-data/'
-USERNAME = 'mark.jm.mcintyre@cesmail.net'
-PASSWORD = 'Wombat33geo!'
 LOG_DIRECTORY = './logs/'
+
 
 
 #openhab_URL = 'xxxxxxxxxxxx'

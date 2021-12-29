@@ -1,5 +1,5 @@
 #
-#
+# python to analyse energy meter data and create graphs
 #
 
 import datetime
