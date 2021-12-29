@@ -1,3 +1,3 @@
 #!/bin/bash
 source /home/ec2-user/venvs/geohome/bin/activate
-python analyse_data.py
+python data_analysis.py
