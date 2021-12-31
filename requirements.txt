@@ -1,2 +1,6 @@
-requests
+backoff
 matplotlib
+oauthlib
+python-openhab
+requests
+requests-oauthlib

@@ -1,0 +1,2 @@
+env: aws
+destdir: /home/ec2-user/mmwebsite/geohome/

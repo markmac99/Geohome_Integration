@@ -1,0 +1,43 @@
+- hosts: ukmonhelper
+  vars:
+    srcdir: /mnt/e/dev/energy/Geohome_Integration
+  tasks:
+  - name: import dev variables 
+    include_vars: aws-vars.yml
+    tags: aws
+  - name: import prod variables
+    include_vars: local-vars.yml
+    tags: local
+
+  - name: Ensures {{destdir}} exists
+    file: path={{destdir}} state=directory  
+    tags: [aws, local]
+
+  - name: Copy files
+    copy: src={{ item.src }} dest={{ item.dest }} mode={{ item.mode }}
+    tags: [aws, local]
+    with_items:
+    - {src: '{{srcdir}}/loadconfig.py', dest: '{{destdir}}/', mode: '644', backup: yes }
+    - {src: '{{srcdir}}/geohome.py', dest: '{{destdir}}/', mode: '644', backup: yes }
+    - {src: '{{srcdir}}/getdata.sh', dest: '{{destdir}}/', mode: '754', backup: yes }
+    - {src: '{{srcdir}}/geohome.service', dest: '{{destdir}}/', mode: '644', backup: yes }
+  - name: Copy analysis files
+    copy: src={{ item.src }} dest={{ item.dest }} mode={{ item.mode }}
+    tags: aws
+    with_items:
+    - {src: '{{srcdir}}/data_analysis.py', dest: '{{destdir}}/', mode: '644', backup: yes }
+    - {src: '{{srcdir}}/analyse.sh', dest: '{{destdir}}/', mode: '754', backup: yes }
+    
+  - name: update environment name
+    lineinfile: 
+      path: '{{destdir}}/loadconfig.py'
+      regexp: 'savelogs = '
+      line: 'savelogs = True'
+    tags: [aws]
+
+  - name: update environment name
+    lineinfile: 
+      path: '{{destdir}}/loadconfig.py'
+      regexp: 'openhab_URL = '
+      line: "openhab_URL ='http://themcintyres.ddns.net:8080/rest/'"
+    tags: [aws]

@@ -1,3 +1,3 @@
 #!/bin/bash
-source /home/ec2-user/venvs/geohome/bin/activate
+source ~/venvs/openhabstuff/bin/activate
 python data_analysis.py
