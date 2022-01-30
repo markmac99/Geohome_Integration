@@ -12,7 +12,7 @@ from datetime import datetime
 from openhab import OpenHAB
 import os
 
-from loadconfig import savelogs, username, getpass, openhab_URL
+from loadconfig import savelogs, username, getGeohomePass, getOpenhabURL
 
 import backoff
 
@@ -25,13 +25,14 @@ LOG_DIRECTORY = './logs/'
 num_max_retries = 20
 
 
-openhab = OpenHAB(openhab_URL)
+openhab = OpenHAB(getOpenhabURL())
 HouseElectricityPower = openhab.get_item('HouseElectricityPower')
 HouseElectricityMeterReading = openhab.get_item('HouseElectricityMeterReading')
 HouseGasMeterReading = openhab.get_item('HouseGasMeterReading')
 HouseGasPower = openhab.get_item('HouseGasPower')
 HouseMeterTimestamp = openhab.get_item('HouseMeterTimestamp')
 HousePowerTimestamp = openhab.get_item('HousePowerTimestamp')
+
 
 @backoff.on_exception(
     backoff.expo,
@@ -91,8 +92,7 @@ class GeoHome(threading.Thread):
 
             log = "Start Api Call: " + str(datetime.now())
             try: 
-                r = requests.get(BASE_URL+LIVEDATA_URL +
-                                self.deviceId, headers=self.headers)
+                r = requests.get(BASE_URL+LIVEDATA_URL + self.deviceId, headers=self.headers)
                 if r.status_code != 200:
                     # Not successful. Assume Authentication Error
                     log = log + os.linesep + \
@@ -132,8 +132,7 @@ class GeoHome(threading.Thread):
                 f.write(log + os.linesep)
             if self.ttlcountdown == 0:
                 try:
-                    r = requests.get(BASE_URL+PERIODICDATA_URL +
-                                    self.deviceId, headers=self.headers)
+                    r = requests.get(BASE_URL+PERIODICDATA_URL + self.deviceId, headers=self.headers)
                     if r.status_code != 200:
                         # Not successful. Assume Authentication Error
                         log = log + os.linesep + \
@@ -174,9 +173,10 @@ class GeoHome(threading.Thread):
             time.sleep(10)
             self.ttlcountdown -= 10
 
+
 # main function
 os.makedirs(LOG_DIRECTORY, exist_ok=True)
-t1 = GeoHome(username, getpass())
+t1 = GeoHome(username, getGeohomePass())
 t1.start()
 try:
     while True:

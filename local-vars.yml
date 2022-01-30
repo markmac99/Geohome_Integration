@@ -1,2 +1,2 @@
 env: aws
-destdir: /home/pi/source/openhabstuff/geohome
+destdir: ~/source/openhabstuff/geohome

@@ -34,10 +34,3 @@
       regexp: 'savelogs = '
       line: 'savelogs = True'
     tags: [aws]
-
-  - name: update environment name
-    lineinfile: 
-      path: '{{destdir}}/loadconfig.py'
-      regexp: 'openhab_URL = '
-      line: "openhab_URL ='http://themcintyres.ddns.net:8080/rest/'"
-    tags: [aws]
