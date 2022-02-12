@@ -73,7 +73,7 @@ class GeoHome(threading.Thread):
         return
 
     def getDevice(self):
-        r = requests.get(BASE_URL+DEVICEDETAILS_URL, headers=self.headers)
+        r = requests.get(BASE_URL+DEVICEDETAILS_URL, headers=self.headers, timeout=10)
         self.deviceId = json.loads(r.text)['systemRoles'][0]['systemId']
         print('Device Id:' + self.deviceId)
         return
