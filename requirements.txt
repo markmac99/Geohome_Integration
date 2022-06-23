@@ -4,3 +4,4 @@ oauthlib
 python-openhab
 requests
 requests-oauthlib
+pandas

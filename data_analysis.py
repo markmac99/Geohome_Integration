@@ -5,6 +5,62 @@
 import datetime
 import json
 import matplotlib.pyplot as plt
+import pandas as pd
+
+
+def graphCumReadings(ym):
+    dts = []
+    ele = []
+    gas = []
+    if ym == 0:
+        ym = datetime.datetime.now().strftime('%Y%m')
+    fname = 'peri-{}.json'.format(ym)
+    jpgename = 'peri-ele-{}.jpg'.format(ym)
+    jpggname = 'peri-gas-{}.jpg'.format(ym)
+    csvfname = 'peri-{}.csv'.format(ym)
+    with open(fname,'r') as inf:
+        lis = inf.readlines()
+    for li in lis:
+        dta = json.loads(li.strip())
+        dtstamp = datetime.datetime.fromtimestamp(dta['latestUtc'])
+        power_dict = dta['totalConsumptionList']
+        try:
+            eleval = ([x for x in power_dict if x['commodityType']=='ELECTRICITY'][0]['totalConsumption'])
+        except:
+            eleval = 0
+        else:
+            eleval = float(eleval)
+        try:
+            gasval = ([x for x in power_dict if x['commodityType']=='GAS_ENERGY'][0]['totalConsumption'])
+        except:
+            gasval = 0
+        else:
+            gasval = float(gasval)/1000
+        if dtstamp > datetime.datetime.fromtimestamp(0): 
+            dts.append(dtstamp)
+            ele.append(eleval)
+            gas.append(gasval)
+    plt.clf()
+    fig = plt.gcf()
+    fig.set_size_inches(11.6, 8.26)
+    plt.plot(dts, ele, label='Electricity')
+    plt.xlabel('Time')
+    plt.ylabel('kW')
+    plt.title('Meter Readings')
+    plt.show()
+    plt.savefig(jpgename)
+    plt.clf()
+    fig = plt.gcf()
+    fig.set_size_inches(11.6, 8.26)
+    plt.plot(dts, gas, label='Gas')
+    plt.xlabel('Time')
+    plt.ylabel('kW')
+    plt.title('Meter Readings')
+    plt.show()
+    plt.savefig(jpggname)
+    df = pd.DataFrame(list(zip(ele, gas)), columns=['ele','gas'], index=dts)
+    df.to_csv(csvfname)
+    return 
 
 
 def graphLiveData(ym):
@@ -13,10 +69,13 @@ def graphLiveData(ym):
     ele = []
     gas = []
     if ym == 0:
-        fname = datetime.datetime.now().strftime('live-%Y%m.json')
-    else:
-        fname = 'live-{}.json'.format(ym)
-    with open (fname,'r') as inf:
+        ym = datetime.datetime.now().strftime('%Y%m')
+
+    fname = 'live-{}.json'.format(ym)
+    jpgfname = 'live-{}.jpg'.format(ym)
+    csvfname = 'live-{}.csv'.format(ym)
+
+    with open(fname,'r') as inf:
         lis = inf.readlines()
     for li in lis:
         dtstamp = datetime.datetime.fromtimestamp(json.loads(li)['latestUtc'])
@@ -51,8 +110,9 @@ def graphLiveData(ym):
     plt.ylabel('kW')
     plt.title('Home Energy Consumption')
     plt.show()
-    fname2 = datetime.datetime.now().strftime('live-%Y%m.jpg')
-    plt.savefig(fname2)
+    plt.savefig(jpgfname)
+    df = pd.DataFrame(list(zip(ele, gas)), columns=['ele','gas'], index=dts)
+    df.to_csv(csvfname)
     return 
 
 
@@ -61,7 +121,7 @@ def printPeriodicData(ym):
         fname = datetime.datetime.now().strftime('peri-%Y%m.json')
     else:
         fname = 'live-{}.json'.format(ym)
-    with open (fname,'r') as inf:
+    with open(fname,'r') as inf:
         lastline = inf.readlines()[-1]
     jsondata = json.loads(lastline)
     dtstamp = datetime.datetime.fromtimestamp(jsondata['latestUtc'])
@@ -98,6 +158,8 @@ def printPeriodicData(ym):
     print('energy per day/week/month', gamtday, gamtwek, gamtmth)
     return 
 
+
 if __name__ == '__main__':
     graphLiveData(0)
     printPeriodicData(0)
+    graphCumReadings(0)
