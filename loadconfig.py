@@ -2,7 +2,6 @@
 import os
 
 username = 'mark.jm.mcintyre@cesmail.net'
-savelogs = False
 
 
 def getGeohomePass():

@@ -12,7 +12,7 @@ from datetime import datetime
 from openhab import OpenHAB
 import os
 
-from loadconfig import savelogs, username, getGeohomePass, getOpenhabURL
+from loadconfig import username, getGeohomePass, getOpenhabURL
 
 import backoff
 
@@ -23,15 +23,6 @@ LIVEDATA_URL = 'api/userapi/system/smets2-live-data/'
 PERIODICDATA_URL = 'api/userapi/system/smets2-periodic-data/'
 LOG_DIRECTORY = './logs/'
 num_max_retries = 20
-
-
-openhab = OpenHAB(getOpenhabURL())
-HouseElectricityPower = openhab.get_item('HouseElectricityPower')
-HouseElectricityMeterReading = openhab.get_item('HouseElectricityMeterReading')
-HouseGasMeterReading = openhab.get_item('HouseGasMeterReading')
-HouseGasPower = openhab.get_item('HouseGasPower')
-HouseMeterTimestamp = openhab.get_item('HouseMeterTimestamp')
-HousePowerTimestamp = openhab.get_item('HousePowerTimestamp')
 
 
 @backoff.on_exception(
@@ -59,8 +50,7 @@ class GeoHome(threading.Thread):
         self.authorise()
         self.getDevice()
         log = log + os.linesep + "End Intalising: " + str(datetime.now())
-        with open(LOG_DIRECTORY+"GeoHomeLog"+time.strftime("%Y%m%d")+".json", mode='a+', encoding='utf-8') as f:
-            f.write(log + os.linesep)
+        self.writeLogEntry(log)
         self.ttlcountdown = 0
 
     def authorise(self):
@@ -77,6 +67,14 @@ class GeoHome(threading.Thread):
         self.deviceId = json.loads(r.text)['systemRoles'][0]['systemId']
         print('Device Id:' + self.deviceId)
         return
+    
+    def writeLogEntry(self, msg, live=True):
+        if live is True:
+            with open(LOG_DIRECTORY+"GHlive"+time.strftime("%Y%m%d")+".log", mode='a+', encoding='utf-8') as f:
+                f.write(msg + '\n')
+        else:
+            with open(LOG_DIRECTORY+"GHperi"+time.strftime("%Y%m%d")+".log", mode='a+', encoding='utf-8') as f:
+                f.write(msg + '\n')
 
     # function using _stop function
     def stop(self):
@@ -90,13 +88,21 @@ class GeoHome(threading.Thread):
             if self.stopped():
                 return
 
-            log = "Start Api Call: " + str(datetime.now())
             try: 
+                openhab = OpenHAB(getOpenhabURL())
+                HouseElectricityPower = openhab.get_item('HouseElectricityPower')
+                HouseElectricityMeterReading = openhab.get_item('HouseElectricityMeterReading')
+                HouseGasMeterReading = openhab.get_item('HouseGasMeterReading')
+                HouseGasPower = openhab.get_item('HouseGasPower')
+                HouseMeterTimestamp = openhab.get_item('HouseMeterTimestamp')
+                HousePowerTimestamp = openhab.get_item('HousePowerTimestamp')
+
                 r = requests.get(BASE_URL+LIVEDATA_URL + self.deviceId, headers=self.headers)
                 if r.status_code != 200:
                     # Not successful. Assume Authentication Error
-                    log = log + os.linesep + \
-                        "Request Status Error:" + str(r.status_code)
+                    log = "Request Status Error:" + str(r.status_code)
+                    self.writeLogEntry(log)
+
                     # Reauthenticate. Need to add more error trapping here in case api goes down.
                     self.authorise()
                     self.getDevice()
@@ -104,17 +110,14 @@ class GeoHome(threading.Thread):
                     power_dict = json.loads(r.text)['power']
                     powertime = int(json.loads(r.text)['powerTimestamp'])
                     HousePowerTimestamp.state = datetime.fromtimestamp(powertime)
-                    if savelogs is True:
-                        outfnam = datetime.now().strftime('live-%Y%m.json')
-                        with open(outfnam, 'a') as outf:
-                            outf.write('{}\n'.format(r.text))
-                    # Try to find the electrivity usage
+                    #self.writeLogEntry(r.text)
+                    # Try to find the electricity usage
                     try:
                         Electrcity_usage = (
                             [x for x in power_dict if x['type'] == 'ELECTRICITY'][0]['watts'])
                     except:
                         # Cant find Electricity in list. Add to log file but do nothing else
-                        log = log + os.linesep + "No Electricity reading found"
+                        self.writeLogEntry('No Electricity reading found')
                     else:
                         # Code executed ok so update the usage
                         HouseElectricityPower.state = Electrcity_usage
@@ -123,29 +126,26 @@ class GeoHome(threading.Thread):
                             [x for x in power_dict if x['type'] == 'GAS_ENERGY'][0]['watts'])
                     except:
                         # Cant find Gas in list. Add to log file but do nothing else
-                        log = log + os.linesep + "No Gas reading found"
+                        self.writeLogEntry('No Gas reading found')
                     else:
                         HouseGasPower.state = Gas_usage
+                    self.writeLogEntry(f'{HousePowerTimestamp.state},{Electrcity_usage},{Gas_usage}')
             except Exception: 
-                print('unable to connect for realtime data')
-            with open(LOG_DIRECTORY+"GeoHomeLog"+time.strftime("%Y%m%d")+".json", mode='a+', encoding='utf-8') as f:
-                f.write(log + os.linesep)
+                self.writeLogEntry('unable to connect for realtime data')
             if self.ttlcountdown == 0:
                 try:
                     r = requests.get(BASE_URL+PERIODICDATA_URL + self.deviceId, headers=self.headers)
                     if r.status_code != 200:
                         # Not successful. Assume Authentication Error
-                        log = log + os.linesep + \
-                            "Request Status Error:" + str(r.status_code)
+                        log = "Request Status Error:" + str(r.status_code)
+                        self.writeLogEntry(log, False)
+
                         # Reauthenticate. Need to add more error trapping here in case api goes down.
                         self.authorise()
                         self.getDevice()
                     else:
                         self.ttlcountdown = json.loads(r.text)['ttl']
-                        outfnam = datetime.now().strftime('peri-%Y%m.json')
-                        if savelogs is True:
-                            with open(outfnam, 'a') as outf:
-                                outf.write('{}\n'.format(r.text))
+                        #self.writeLogEntry(r.text)
                         powertime = int(json.loads(r.text)['totalConsumptionTimestamp'])
                         HouseMeterTimestamp.state = datetime.fromtimestamp(powertime)
                         power_dict = json.loads(r.text)['totalConsumptionList']
@@ -155,7 +155,7 @@ class GeoHome(threading.Thread):
                                 [x for x in power_dict if x['commodityType'] == 'ELECTRICITY'][0]['totalConsumption'])
                         except:
                             # Cant find Electricity in list. Add to log file but do nothing else
-                            log = log + os.linesep + "No Electricity reading found"
+                            self.writeLogEntry('No Electricity reading found', False)
                         else:
                             # Code executed ok so update the usage
                             HouseElectricityMeterReading.state = Electrcity_usage
@@ -164,11 +164,12 @@ class GeoHome(threading.Thread):
                                 [x for x in power_dict if x['commodityType'] == 'GAS_ENERGY'][0]['totalConsumption'])
                         except:
                             # Cant find Gas in list. Add to log file but do nothing else
-                            log = log + os.linesep + "No Gas reading found"
+                            self.writeLogEntry('No Gas reading found', False)
                         else:
                             HouseGasMeterReading.state = float(Gas_usage)/1000
+                    self.writeLogEntry(f'{HouseMeterTimestamp.state},{Electrcity_usage},{Gas_usage}', False)
                 except Exception:
-                    print('unable to connect for periodic data')
+                    self.writeLogEntry('unable to connect for periodic data', False)
 
             time.sleep(10)
             self.ttlcountdown -= 10

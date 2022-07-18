@@ -1,15 +1,11 @@
 [Unit]
-Description=geohome
-After=network.target
+Description=Get Geohome Data
+
 [Service]
-ExecStart=/home/pi/source/openhabstuff/geohome/getdata.sh
-StandardOutput=syslog
-StandardError=syslog
-SyslogIdentifier=geohome
-Restart=always
-User=pi
+ExecStart=/home/ec2-user/mmwebsite/geohome/getdata.sh
+
 [Install]
 WantedBy=multi-user.target
 
 # copy this file to /lib/systemd/system/ then run
-# sudo systemctl enable geohome.service && sudo systemctl start geohome.service
+# sudo systemctl daemon-reload && sudo systemctl enable geohome && sudo systemctl start geohome

@@ -28,9 +28,3 @@
     - {src: '{{srcdir}}/data_analysis.py', dest: '{{destdir}}/', mode: '644', backup: yes }
     - {src: '{{srcdir}}/analyse.sh', dest: '{{destdir}}/', mode: '754', backup: yes }
     
-  - name: update environment name
-    lineinfile: 
-      path: '{{destdir}}/loadconfig.py'
-      regexp: 'savelogs = '
-      line: 'savelogs = True'
-    tags: [aws]
