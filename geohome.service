@@ -1,8 +1,11 @@
 [Unit]
 Description=Get Geohome Data
+After=network.target
 
 [Service]
 ExecStart=/home/ec2-user/mmwebsite/geohome/getdata.sh
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
