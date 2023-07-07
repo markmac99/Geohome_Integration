@@ -1,4 +1,4 @@
-- hosts: ukmonhelper
+- hosts: wordpresssite
   vars:
     srcdir: /mnt/e/dev/energy/Geohome_Integration
   tasks:
@@ -21,6 +21,8 @@
     - {src: '{{srcdir}}/geohome.py', dest: '{{destdir}}/', mode: '644', backup: yes }
     - {src: '{{srcdir}}/getdata.sh', dest: '{{destdir}}/', mode: '754', backup: yes }
     - {src: '{{srcdir}}/geohome.service', dest: '{{destdir}}/', mode: '644', backup: yes }
+    - {src: '{{srcdir}}/installService.sh', dest: '{{destdir}}/', mode: '754', backup: yes }
+    - {src: '{{srcdir}}/requirements.txt', dest: '{{destdir}}/', mode: '754', backup: yes }
   - name: Copy analysis files
     copy: src={{ item.src }} dest={{ item.dest }} mode={{ item.mode }}
     tags: aws

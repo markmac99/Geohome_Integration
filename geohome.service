@@ -3,7 +3,7 @@ Description=Get Geohome Data
 After=network.target
 
 [Service]
-ExecStart=/home/ec2-user/mmwebsite/geohome/getdata.sh
+ExecStart=/home/bitnami/mmwebsite/geohome/getdata.sh
 Restart=always
 RestartSec=5
 
