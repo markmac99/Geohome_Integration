@@ -1,2 +1,2 @@
 env: aws
-destdir: ~/mmwebsite/geohome/
+destdir: ~/src/geohome/

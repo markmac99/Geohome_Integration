@@ -1,3 +1,4 @@
 #!/bin/bash
-source ~/venvs/openhabstuff/bin/activate
+source ~/.bashrc
+conda activate $HOME/miniconda3/envs/openhabstuff
 python data_analysis.py
