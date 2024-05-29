@@ -5,6 +5,7 @@ After=network.target
 [Service]
 User=ec2-user
 ExecStart=/home/ec2-user/src/geohome/getdata.sh
+ExecStop=/usr/bin/touch /home/ec2-user/src/geohome/.stopgh
 Restart=always
 RestartSec=5
 

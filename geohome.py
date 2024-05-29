@@ -1,186 +1,173 @@
-# -*- coding: utf-8 -*-
-"""
-Script to intergrate GeoTogether meter readings into the Openhab
-Still needs some work to handle errors
+# copyright Mark McIntyre, 2024-
 
-"""
+# script to capture electricit and gas meter data from the Geohome network
+
 import requests
 import json
-import threading
 import time
-from datetime import datetime
-from openhab import OpenHAB
+import datetime
 import os
+from openhab import OpenHAB
+import logging
 
 from loadconfig import username, getGeohomePass, getOpenhabURL
 
-import backoff
+log = logging.getLogger('geohome')
 
 BASE_URL = 'https://api.geotogether.com/'
 LOGIN_URL = 'usersservice/v2/login'
 DEVICEDETAILS_URL = 'api/userapi/v2/user/detail-systems?systemDetails=true'
 LIVEDATA_URL = 'api/userapi/system/smets2-live-data/'
 PERIODICDATA_URL = 'api/userapi/system/smets2-periodic-data/'
-LOG_DIRECTORY = './logs/'
-num_max_retries = 20
 
 
-@backoff.on_exception(
-    backoff.expo,
-    requests.exceptions.RequestException,
-    max_tries=5,
-    giveup=lambda e: e.response is not None and e.response.status_code < 500
-)
-class GeoHome(threading.Thread):
-
-    # Thread class with a _stop() method.
-    # The thread itself has to check
-    # regularly for the stopped() condition.
-
-    def __init__(self, varUserName, varPassword):
-
-        log = "Start Intalising: " + str(datetime.now())
-        threading.Thread.__init__(self)
-        #super(Thread, self).__init__()
-        self._stop = threading.Event()
-        self.varUserName = varUserName
-        self.varPassword = varPassword
-        self.headers = ""
-        self.deviceId = ""
-        self.authorise()
-        self.getDevice()
-        log = log + os.linesep + "End Intalising: " + str(datetime.now())
-        self.writeLogEntry(log)
-        self.ttlcountdown = 0
-
-    def authorise(self):
-        data = {'identity': self.varUserName, 'password': self.varPassword}
-        r = requests.post(BASE_URL+LOGIN_URL,
-                          data=json.dumps(data), verify=False)
-        # print(r.text)
+def connectGeohome():
+    data = {'identity': username, 'password': getGeohomePass()}
+    try:
+        r = requests.post(BASE_URL+LOGIN_URL, data=json.dumps(data))
         authToken = json.loads(r.text)['accessToken']
-        self.headers = {"Authorization": "Bearer " + authToken}
-        return
+        return {"Authorization": "Bearer " + authToken}
+    except Exception as e:
+        log.error(e)
+        return False
 
-    def getDevice(self):
-        r = requests.get(BASE_URL+DEVICEDETAILS_URL, headers=self.headers, timeout=10)
-        self.deviceId = json.loads(r.text)['systemRoles'][0]['systemId']
-        print('Device Id:' + self.deviceId)
-        return
-    
-    def writeLogEntry(self, msg, live=True):
-        if live is True:
-            with open(LOG_DIRECTORY+"GHlive"+time.strftime("%Y%m%d")+".log", mode='a+', encoding='utf-8') as f:
-                f.write(msg + '\n')
+
+def getDevice(authn):
+    try:
+        r = requests.get(BASE_URL+DEVICEDETAILS_URL, headers=authn, timeout=10)
+        deviceId = json.loads(r.text)['systemRoles'][0]['systemId']
+        log.info(f'Device Id: {deviceId}')
+        return deviceId
+    except Exception as e:
+        log.error(e)
+        return False
+
+
+def updateOpenhabLive(powertime, elecval, gasval):
+    try:
+        openhab = OpenHAB(getOpenhabURL())
+        HouseElectricityPower = openhab.get_item('HouseElectricityPower')
+        HouseGasPower = openhab.get_item('HouseGasPower')
+        HousePowerTimestamp = openhab.get_item('HousePowerTimestamp')
+        HousePowerTimestamp.state = powertime
+        HouseElectricityPower.state = round(elecval, 1)
+        HouseGasPower.state = round(gasval, 1)
+    except Exception as e:
+        log.error('problem updating openhab realtime data')
+        log.error(e)
+    return 
+
+
+def updateOpenhabMeters(electime, elecval, gastime, gasval):
+    try:
+        openhab = OpenHAB(getOpenhabURL())
+        HouseElectricityMeterReading = openhab.get_item('HouseElectricityMeterReading')
+        HouseGasMeterReading = openhab.get_item('HouseGasMeterReading')
+        HouseMeterTimestamp = openhab.get_item('HouseMeterTimestamp')
+        GasMeterTimestamp = openhab.get_item('GasMeterTimestamp')
+        HouseMeterTimestamp.state = electime
+        HouseElectricityMeterReading.state = round(elecval, 1)
+        GasMeterTimestamp.state = gastime
+        HouseGasMeterReading.state = round(gasval, 1)
+    except Exception as e:
+        log.error('problem updating openhab meter data')
+        log.error(e)
+    return 
+
+
+def getLiveData():
+    authn = connectGeohome()
+    if not authn:
+        return False, False, False
+    deviceId = getDevice(authn)
+    if not deviceId:
+        return False, False, False
+    try:
+        r = requests.get(BASE_URL+LIVEDATA_URL + deviceId, headers=authn)
+        if r.status_code != 200:
+            # Not successful. Assume Authentication Error
+            print(f'Request Status Error: {r.status_code}')
         else:
-            with open(LOG_DIRECTORY+"GHperi"+time.strftime("%Y%m%d")+".log", mode='a+', encoding='utf-8') as f:
-                f.write(msg + '\n')
-
-    # function using _stop function
-    def stop(self):
-        self._stop.set()
-
-    def stopped(self):
-        return self._stop.isSet()
-
-    def run(self):
-        while True:
-            if self.stopped():
-                return
-
-            try: 
-                openhab = OpenHAB(getOpenhabURL())
-                HouseElectricityPower = openhab.get_item('HouseElectricityPower')
-                HouseElectricityMeterReading = openhab.get_item('HouseElectricityMeterReading')
-                HouseGasMeterReading = openhab.get_item('HouseGasMeterReading')
-                HouseGasPower = openhab.get_item('HouseGasPower')
-                HouseMeterTimestamp = openhab.get_item('HouseMeterTimestamp')
-                HousePowerTimestamp = openhab.get_item('HousePowerTimestamp')
-
-                r = requests.get(BASE_URL+LIVEDATA_URL + self.deviceId, headers=self.headers)
-                if r.status_code != 200:
-                    # Not successful. Assume Authentication Error
-                    log = "Request Status Error:" + str(r.status_code)
-                    self.writeLogEntry(log)
-
-                    # Reauthenticate. Need to add more error trapping here in case api goes down.
-                    self.authorise()
-                    self.getDevice()
-                else:
-                    power_dict = json.loads(r.text)['power']
-                    powertime = int(json.loads(r.text)['powerTimestamp'])
-                    HousePowerTimestamp.state = datetime.fromtimestamp(powertime)
-                    #self.writeLogEntry(r.text)
-                    # Try to find the electricity usage
-                    try:
-                        Electrcity_usage = (
-                            [x for x in power_dict if x['type'] == 'ELECTRICITY'][0]['watts'])
-                    except:
-                        # Cant find Electricity in list. Add to log file but do nothing else
-                        self.writeLogEntry('No Electricity reading found')
-                    else:
-                        # Code executed ok so update the usage
-                        HouseElectricityPower.state = Electrcity_usage
-                    try:
-                        Gas_usage = (
-                            [x for x in power_dict if x['type'] == 'GAS_ENERGY'][0]['watts'])
-                    except:
-                        # Cant find Gas in list. Add to log file but do nothing else
-                        self.writeLogEntry('No Gas reading found')
-                    else:
-                        HouseGasPower.state = Gas_usage
-                    self.writeLogEntry(f'{HousePowerTimestamp.state},{Electrcity_usage},{Gas_usage}')
-            except Exception: 
-                self.writeLogEntry('unable to connect for realtime data')
-            if self.ttlcountdown == 0:
-                try:
-                    r = requests.get(BASE_URL+PERIODICDATA_URL + self.deviceId, headers=self.headers)
-                    if r.status_code != 200:
-                        # Not successful. Assume Authentication Error
-                        log = "Request Status Error:" + str(r.status_code)
-                        self.writeLogEntry(log, False)
-
-                        # Reauthenticate. Need to add more error trapping here in case api goes down.
-                        self.authorise()
-                        self.getDevice()
-                    else:
-                        self.ttlcountdown = json.loads(r.text)['ttl']
-                        #self.writeLogEntry(r.text)
-                        powertime = int(json.loads(r.text)['totalConsumptionTimestamp'])
-                        HouseMeterTimestamp.state = datetime.fromtimestamp(powertime)
-                        power_dict = json.loads(r.text)['totalConsumptionList']
-                        # Try to find the electrivity usage
-                        try:
-                            Electrcity_usage = (
-                                [x for x in power_dict if x['commodityType'] == 'ELECTRICITY'][0]['totalConsumption'])
-                        except:
-                            # Cant find Electricity in list. Add to log file but do nothing else
-                            self.writeLogEntry('No Electricity reading found', False)
-                        else:
-                            # Code executed ok so update the usage
-                            HouseElectricityMeterReading.state = Electrcity_usage
-                        try:
-                            Gas_usage = (
-                                [x for x in power_dict if x['commodityType'] == 'GAS_ENERGY'][0]['totalConsumption'])
-                        except:
-                            # Cant find Gas in list. Add to log file but do nothing else
-                            self.writeLogEntry('No Gas reading found', False)
-                        else:
-                            HouseGasMeterReading.state = float(Gas_usage)/1000
-                    self.writeLogEntry(f'{HouseMeterTimestamp.state},{Electrcity_usage},{Gas_usage}', False)
-                except Exception:
-                    self.writeLogEntry('unable to connect for periodic data', False)
-
-            time.sleep(10)
-            self.ttlcountdown -= 10
+            power_dict = json.loads(r.text)['power']
+            powertime = int(json.loads(r.text)['powerTimestamp'])
+            try:
+                elecval = ([x for x in power_dict if x['type'] == 'ELECTRICITY'][0]['watts'])
+                log.info(f'elecval {elecval}')
+            except Exception:
+                log.info('No Electricity reading found')
+            try:
+                gasval = ([x for x in power_dict if x['type'] == 'GAS_ENERGY'][0]['watts'])
+                log.info(f'gasval {gasval}')
+            except Exception:
+                log.info('No Gas reading found')
+            try:
+                powertime = datetime.datetime.fromtimestamp(powertime)
+                log.info(f'HousePowerTimeStamp {powertime.strftime("%Y-%m-%dT%H:%M:%SZ")}')
+            except Exception:
+                log.info('invalid datestamp')
+    except Exception: 
+        log.info('unable to connect for realtime data')
+    return powertime, elecval, gasval
 
 
-# main function
-os.makedirs(LOG_DIRECTORY, exist_ok=True)
-t1 = GeoHome(username, getGeohomePass())
-t1.start()
-try:
+def getMeterData():
+    authn = connectGeohome()
+    if not authn:
+        return False, False, False
+    deviceId = getDevice(authn)
+    if not deviceId:
+        return False, False, False
+    try:
+        r = requests.get(BASE_URL+PERIODICDATA_URL + deviceId, headers=authn)
+        if r.status_code != 200:
+            # Not successful. Assume Authentication Error
+            log.info(f'Request Status Error: {r.status_code}')
+        else:
+            ttl = json.loads(r.text)['ttl']
+            power_dict = json.loads(r.text)['totalConsumptionList']
+            try:
+                elecval = ([x for x in power_dict if x['commodityType'] == 'ELECTRICITY'][0]['totalConsumption'])
+                electime = ([x for x in power_dict if x['commodityType'] == 'ELECTRICITY'][0]['readingTime'])
+                log.info(f'elecval {elecval}')
+            except Exception:
+                log.info('No Electricity reading found')
+            try:
+                gasval = ([x for x in power_dict if x['commodityType'] == 'GAS_ENERGY'][0]['totalConsumption'])
+                gastime = ([x for x in power_dict if x['commodityType'] == 'GAS_ENERGY'][0]['readingTime'])
+                log.info(f'gasval {gasval}')
+            except Exception:
+                log.info('No Gas reading found')
+    except Exception: 
+        log.info('unable to connect for realtime data')
+    electime = datetime.datetime.fromtimestamp(electime)
+    gastime = datetime.datetime.fromtimestamp(gastime)
+    return electime, elecval, gastime, float(gasval)/1000, ttl
+
+
+if __name__ == '__main__':
+    logpath = os.path.expanduser('~/logs')
+    logname=os.path.join(logpath, 'geohome.log')
+    log.setLevel(logging.INFO)
+    fh = logging.FileHandler(logname)
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(message)s'))
+    log.addHandler(fh)
+
+    stopfile = '.stopgh'
+    rtwait = 10
+    ttlcountdown = 0
     while True:
-        time.sleep(5)
-except KeyboardInterrupt:
-    t1.stop()
+        pt, ev, gv = getLiveData()
+        if pt:
+            log.info(f'{pt}, {ev}, {gv}')
+            #updateOpenhabLive(pt, ev, gv)
+        if ttlcountdown == 0:
+            et, em, gt, gm, ttl = getMeterData()
+            ttlcountdown = ttl
+            log.info(f'{et}, {em}, {gt}, {gm}')
+            updateOpenhabMeters(et, em, gt, gm)
+        time.sleep(rtwait)
+        if os.path.isfile(stopfile):
+            os.remove(stopfile)
+            log.info('exiting...')
+            break

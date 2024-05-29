@@ -2,3 +2,4 @@ logs/*.json
 *.json
 live-202112.jpg
 geoconfig.py
+__pycache__/*.cpython-38.pyc
