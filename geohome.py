@@ -148,7 +148,7 @@ if __name__ == '__main__':
     logpath = os.path.expanduser('~/logs')
     logname=os.path.join(logpath, 'geohome.log')
     log.setLevel(logging.INFO)
-    fh = logging.FileHandler(logname)
+    fh = logging.FileHandler(logname, 'a+')
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(message)s'))
     log.addHandler(fh)
