@@ -160,7 +160,7 @@ if __name__ == '__main__':
         pt, ev, gv = getLiveData()
         if pt:
             log.info(f'{pt}, {ev}, {gv}')
-            #updateOpenhabLive(pt, ev, gv)
+            updateOpenhabLive(pt, ev, gv)
         if ttlcountdown == 0:
             et, em, gt, gm, ttl = getMeterData()
             ttlcountdown = ttl
